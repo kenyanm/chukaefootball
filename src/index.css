@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #060907;
+    color: #f1f5f2;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: 'Chakra Petch', 'Rajdhani', sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Touch friendly minimums */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Custom scrollbar for horizontal scrolling containers */
+.bracket-scroll::-webkit-scrollbar,
+.custom-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.bracket-scroll::-webkit-scrollbar-track,
+.custom-scroll::-webkit-scrollbar-track {
+  background: #080e0a;
+  border-radius: 4px;
+}
+.bracket-scroll::-webkit-scrollbar-thumb,
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #14281c;
+  border-radius: 4px;
+}
+.bracket-scroll::-webkit-scrollbar-thumb:hover,
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+/* Hide scrollbar while preserving scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Pitch pattern background */
+.bg-pitch-pattern {
+  background-color: #060907;
+  background-image: radial-gradient(rgba(16, 185, 129, 0.07) 1px, transparent 1px),
+                    radial-gradient(rgba(249, 115, 22, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
+}
+
+/* Esports Surface Card */
+.esports-card {
+  background: linear-gradient(180deg, rgba(16, 28, 20, 0.75) 0%, rgba(8, 14, 10, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6);
+}
+
+.esports-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.esports-card-hover:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(16, 185, 129, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Authentic eFootball™ Stadium and Card Stylings */
+.efootball-card-bg {
+  background: radial-gradient(120% 120% at 50% 0%, #0d1e15 0%, #08120c 60%, #040805 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(16, 185, 129, 0.15);
+}
+
+.efootball-card-epic {
+  background: radial-gradient(120% 120% at 50% -10%, #1e1b0a 0%, #111006 60%, #070603 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), 0 0 25px -5px rgba(245, 158, 11, 0.2);
+}
+
+.efootball-diagonal-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.015),
+    rgba(255, 255, 255, 0.015) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+}
+
+/* Esports Glow utilities */
+.glow-green {
+  box-shadow: 0 0 20px -4px rgba(16, 185, 129, 0.4);
+}
+.glow-amber {
+  box-shadow: 0 0 20px -4px rgba(245, 158, 11, 0.4);
+}
+.glow-orange {
+  box-shadow: 0 0 20px -4px rgba(249, 115, 22, 0.4);
+}
+.glow-red {
+  box-shadow: 0 0 20px -4px rgba(239, 68, 68, 0.4);
+}
+
+/* Subtle border glow */
+.border-glow-green {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.border-glow-amber {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+

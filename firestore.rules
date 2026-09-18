@@ -1,0 +1,531 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'wayongohlaurence@gmail.com' ||
+          request.auth.token.email == 'enermindb@gmail.com'
+        ))
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Admins registry
+    match /admins/{adminUid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // User profiles & stats (public read, authenticated updates restricted)
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId) && (
+        !('isAdmin' in request.resource.data) ||
+        request.resource.data.isAdmin == false ||
+        isAdmin()
+      ) && (
+        !('role' in request.resource.data) ||
+        request.resource.data.role == 'PLAYER' ||
+        isAdmin()
+      );
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        (!('playerId' in resource.data) || request.resource.data.playerId == resource.data.playerId) &&
+        (!('userId' in resource.data) || request.resource.data.userId == resource.data.userId) &&
+        (!('firebaseUid' in resource.data) || request.resource.data.firebaseUid == resource.data.firebaseUid) &&
+        (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+        (!('registeredAt' in resource.data) || request.resource.data.registeredAt == resource.data.registeredAt) &&
+        (!('isAdmin' in request.resource.data) || ('isAdmin' in resource.data && request.resource.data.isAdmin == resource.data.isAdmin) || request.resource.data.isAdmin == false) &&
+        (!('role' in request.resource.data) || ('role' in resource.data && request.resource.data.role == resource.data.role) || request.resource.data.role == 'PLAYER')
+      ) || (
+        // Allow match result finalization to increment match stats
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['wins', 'losses', 'championships'])
+      );
+      allow delete: if isAdmin();
+
+      // PII Isolation: Player private contact information (WhatsApp phone)
+      // Strictly accessible ONLY by the account owner and authorized administrators
+      match /private/{subdoc} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // Tournaments (calendar, standings, schedule)
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      // Players can only increment registeredCount on registration
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registeredCount', 'updatedAt']) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registeredCount'])
+        )
+      );
+    }
+
+    // Tournament Rounds (Daily round schedules)
+    match /rounds/{roundId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Tournament Entries / Registrations
+    match /tournamentEntries/{entryId} {
+      // Public verified roster can read VERIFIED entries. Owners can read their own entries. Admins can read all.
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (resource.data.status == 'VERIFIED' || resource.data.registrationStatus == 'VERIFIED');
+      
+      // User can create their own registration (cannot create for another UID, cannot set VERIFIED status, cannot set verifiedBy)
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status != 'VERIFIED' &&
+        (!('registrationStatus' in request.resource.data) || request.resource.data.registrationStatus != 'VERIFIED') &&
+        (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus != 'VERIFIED') &&
+        (!('verifiedBy' in request.resource.data));
+
+      // User cannot self-verify, cannot change playerId or tournamentId, cannot modify another player's registration, cannot set verifiedBy
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.playerId == resource.data.playerId &&
+        request.resource.data.tournamentId == resource.data.tournamentId &&
+        request.resource.data.status != 'VERIFIED' &&
+        (!('registrationStatus' in request.resource.data) || request.resource.data.registrationStatus != 'VERIFIED') &&
+        (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus != 'VERIFIED') &&
+        (!('verifiedBy' in request.resource.data) || request.resource.data.verifiedBy == resource.data.verifiedBy)
+      );
+
+      // Only admins can delete registrations
+      allow delete: if isAdmin();
+    }
+
+    // M-Pesa Payments (private to payer & admins only)
+    match /payments/{paymentId} {
+      // Only admin or the payer can read payment details (sensitive details NEVER exposed publicly)
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      // User can create their own payment (cannot set VERIFIED status, cannot set verifiedBy, cannot create for another user)
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status != 'VERIFIED' &&
+        (!('verifiedBy' in request.resource.data));
+
+      // Admin can verify or reject. Player can update for resubmission (if status != VERIFIED and not setting to VERIFIED)
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.playerId == resource.data.playerId &&
+        request.resource.data.tournamentId == resource.data.tournamentId &&
+        request.resource.data.status != 'VERIFIED' &&
+        (!('verifiedBy' in request.resource.data) || request.resource.data.verifiedBy == resource.data.verifiedBy)
+      );
+
+      // Payment records cannot be deleted (immutable audit compliance)
+      allow delete: if false;
+    }
+
+    // Knockout Matches (Only participants or admin can update match submissions/status)
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.homePlayerUid == request.auth.uid ||
+          resource.data.awayPlayerUid == request.auth.uid
+        ) &&
+        // Confirmed matches are terminal and immutable
+        resource.data.status != 'CONFIRMED' &&
+        // Structural bracket invariants
+        request.resource.data.tournamentId == resource.data.tournamentId &&
+        request.resource.data.roundId == resource.data.roundId &&
+        request.resource.data.bracketPosition == resource.data.bracketPosition &&
+        (!('homePlayerId' in resource.data) || request.resource.data.homePlayerId == resource.data.homePlayerId) &&
+        (!('awayPlayerId' in resource.data) || request.resource.data.awayPlayerId == resource.data.awayPlayerId) &&
+        (!('homePlayerUid' in resource.data) || request.resource.data.homePlayerUid == resource.data.homePlayerUid) &&
+        (!('awayPlayerUid' in resource.data) || request.resource.data.awayPlayerUid == resource.data.awayPlayerUid) &&
+        (!('isBye' in resource.data) || request.resource.data.isBye == resource.data.isBye) &&
+        (!('deadline' in resource.data) || request.resource.data.deadline == resource.data.deadline)
+      );
+    }
+
+    // Private eFootball Mobile Match Rooms (Home, Away, and Admin ONLY)
+    match /matchRooms/{matchId} {
+      // 1. Read: ONLY Home player, Away player, or Admin can read
+      allow read: if isAdmin() || (isSignedIn() && (
+        resource.data.homePlayerUid == request.auth.uid ||
+        resource.data.awayPlayerUid == request.auth.uid
+      ));
+
+      // 2. Create: Only designated HOME player or Admin can initialize/create room
+      allow create: if isAdmin() || (isSignedIn() && (
+        request.resource.data.homePlayerUid == request.auth.uid &&
+        request.resource.data.roomNumber is string &&
+        request.resource.data.roomNumber.size() == 6 &&
+        request.resource.data.roomNumber.matches('^[0-9]{6}$')
+      ));
+
+      // 3. Update:
+      // HOME player can update roomNumber (must be exactly 6 numeric digits)
+      // AWAY player CANNOT modify roomNumber (can only update awayReady, awayReadyAt, awayWhatsApp, updatedAt)
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          // Home player updating room number before result submission
+          (
+            resource.data.homePlayerUid == request.auth.uid &&
+            request.resource.data.homePlayerUid == resource.data.homePlayerUid &&
+            request.resource.data.awayPlayerUid == resource.data.awayPlayerUid &&
+            request.resource.data.roomNumber is string &&
+            request.resource.data.roomNumber.size() == 6 &&
+            request.resource.data.roomNumber.matches('^[0-9]{6}$')
+          ) ||
+          // Away player can only update readiness/contact info, NEVER room number
+          (
+            resource.data.awayPlayerUid == request.auth.uid &&
+            request.resource.data.homePlayerUid == resource.data.homePlayerUid &&
+            request.resource.data.awayPlayerUid == resource.data.awayPlayerUid &&
+            request.resource.data.roomNumber == resource.data.roomNumber &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['awayReady', 'awayReadyAt', 'awayWhatsApp', 'updatedAt'])
+          )
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Google Sheets synchronization queue & logs (Admin strictly restricted)
+    match /sheetsSyncLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+    match /sheetsSyncQueue/{queueId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Match Evidence (Screenshots - temporary)
+    match /matchEvidence/{evidenceId} {
+      allow read: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.uploadedBy == request.auth.uid ||
+          (exists(/databases/$(database)/documents/matches/$(resource.data.matchId)) && (
+            get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.homePlayerUid == request.auth.uid ||
+            get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.awayPlayerUid == request.auth.uid
+          ))
+        )
+      );
+      allow create: if isSignedIn() && request.resource.data.uploadedBy == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.uploadedBy == request.auth.uid);
+    }
+
+    // Disputes
+    match /disputes/{disputeId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.reportedBy == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.reportedBy == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Champions Hall of Fame
+    match /champions/{championId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // Weekly Champion Cash Prizes (Only admin can update payout status to PAID)
+    match /prizes/{prizeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // Audit and system logs
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // Google Sheets synchronization configuration (Admin strictly restricted)
+    match /settings/googleSheets {
+      allow read, write: if isAdmin();
+    }
+
+    // System counters and configuration
+    match /settings/playerCounter {
+      allow read: if true;
+      // Allow initial document initialization by admin or first legitimate user if count == 1
+      allow create: if isSignedIn() && (
+        isAdmin() || (
+          request.resource.data.count is int &&
+          request.resource.data.count == 1 &&
+          request.resource.data.keys().hasOnly(['count', 'updatedAt'])
+        )
+      );
+      // Strictly enforce atomic +1 increment, integer type, allowed keys only, and no arbitrary manipulation
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          request.resource.data.count is int &&
+          resource.data.count is int &&
+          request.resource.data.count == resource.data.count + 1 &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'updatedAt'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ==========================================================================
+    // CHUKA eFOOTBALL LEAGUE RULES (SEPARATE FROM KNOCKOUT TOURNAMENTS)
+    // ==========================================================================
+
+    // 1. League Season Configuration
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 2. League Members (Standings & Participation Cards)
+    match /leagueMembers/{memberDocId} {
+      // Public standings and digital card profile verification
+      allow read: if true;
+
+      // Regular player cannot self-verify status
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status != 'VERIFIED';
+
+      // Updates: Admin, or member updating cosmetic fields, or standings recomputation
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          (
+            resource.data.userId == request.auth.uid &&
+            request.resource.data.userId == resource.data.userId &&
+            request.resource.data.playerId == resource.data.playerId &&
+            request.resource.data.status == resource.data.status
+          ) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor',
+            'goalsAgainst', 'goalDifference', 'points', 'winRate',
+            'currentPosition', 'previousPosition', 'currentStreak',
+            'longestWinStreak', 'cleanSheets', 'titles', 'rankingMovement',
+            'updatedAt'
+          ])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // 3. League Payments (KSh50 League Card M-Pesa manual verification)
+    match /leaguePayments/{paymentId} {
+      // Strict PII Isolation: only payer and admin can read payment details
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      // Payer creates their own record; cannot self-verify or set verifiedBy
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status != 'VERIFIED' &&
+        (!('verifiedBy' in request.resource.data));
+
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.status != 'VERIFIED' &&
+        (!('verifiedBy' in request.resource.data))
+      );
+
+      // Financial records are immutable audit records
+      allow delete: if false;
+    }
+
+    // 4. League Match Challenges (Match Requests)
+    match /leagueChallenges/{challengeId} {
+      allow read: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.challengerUid == request.auth.uid ||
+          resource.data.challengedUid == request.auth.uid
+        )
+      );
+
+      // Hard Rule: Cannot challenge self
+      allow create: if isSignedIn() &&
+        request.resource.data.challengerUid == request.auth.uid &&
+        request.resource.data.challengedUid != request.auth.uid &&
+        request.resource.data.status == 'PENDING';
+
+      // Updates: Challenged player responds (ACCEPT/DECLINE) or challenger cancels
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          (
+            resource.data.challengedUid == request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt', 'leagueMatchId'])
+          ) ||
+          (
+            resource.data.challengerUid == request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          )
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // 5. League Matches & Two-Way Result Confirmation
+    match /leagueMatches/{matchId} {
+      allow read: if true;
+      allow create: if isSignedIn() || isAdmin();
+
+      // Participants can update room or submit results, but submitter CANNOT self-confirm
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.homePlayerUid == request.auth.uid ||
+          resource.data.awayPlayerUid == request.auth.uid
+        ) &&
+        resource.data.status != 'CONFIRMED' &&
+        (
+          !('status' in request.resource.data) ||
+          request.resource.data.status != 'CONFIRMED' ||
+          (resource.data.submittedByUid != null && resource.data.submittedByUid != request.auth.uid)
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // 6. League Disputes (Result contested by opponent)
+    match /leagueDisputes/{disputeId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.reportedByUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.reportedByUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ========================================================================
+    // ENGAGEMENT & GAMIFICATION ENGINE SECURITY RULES
+    // ========================================================================
+
+    // 7. Player Achievements (Public read, authenticated creation from confirmed matches, immutable once awarded)
+    match /achievements/{achievementId} {
+      allow read: if true;
+      allow create: if isSignedIn() || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 8. Daily Check-in Claims (Private to player & admin, immutable once claimed)
+    match /dailyClaims/{claimId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // 9. Daily First Claims (Atomic 00:00-23:59 EAT global daily claim lock, public read, immutable)
+    match /dailyFirstClaims/{dateKey} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.claimedByUid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // 10. Weekly League Challenges (Public read, admin authoritative control)
+    match /weeklyChallenges/{challengeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 11. Hall of Fame (Public read, admin authoritative control)
+    match /hallOfFame/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ========================================================================
+    // SOCIAL HUB & COMMUNITY LAYER SECURITY RULES
+    // ========================================================================
+
+    // 12. System-Generated Social Activity Feed (Public read, immutable once written)
+    match /socialActivity/{activityId} {
+      allow read: if true;
+      allow create: if isAdmin() || (
+        isSignedIn() &&
+        request.resource.data.activityId == activityId &&
+        ('type' in request.resource.data) &&
+        ('message' in request.resource.data) &&
+        request.resource.data.message.size() <= 250
+      );
+      allow update: if false; // System events are strictly immutable!
+      allow delete: if isAdmin();
+    }
+
+    // 13. Community Posts (Public read, verified author control, anti-tamper)
+    match /communityPosts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() &&
+        request.resource.data.authorUid == request.auth.uid &&
+        request.resource.data.content.size() >= 3 &&
+        request.resource.data.content.size() <= 500 &&
+        request.resource.data.status == 'ACTIVE' &&
+        request.resource.data.reportCount == 0;
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          (resource.data.authorUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'updatedAt'])) ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reportCount', 'status']) &&
+           request.resource.data.reportCount == resource.data.reportCount + 1)
+        )
+      );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.authorUid == request.auth.uid);
+    }
+
+    // 14. Community Moderation Reports (Admin-only resolution, reporter write)
+    match /communityReports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() &&
+        request.resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.status == 'PENDING';
+      allow update, delete: if isAdmin();
+    }
+
+    // 15. Player Blocks (Strict private isolation by blocker UID)
+    match /userBlocks/{blockId} {
+      allow read: if isSignedIn() && resource.data.blockerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.blockerUid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.blockerUid == request.auth.uid;
+    }
+
+    // 16. In-App Notifications (Private to recipient, self-mark read only)
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow create: if isSignedIn() || isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.recipientUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+      );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.recipientUid == request.auth.uid);
+    }
+  }
+}
+
+

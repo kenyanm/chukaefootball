@@ -1,0 +1,607 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with CHUKA Player ID and statistics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase Auth UID" },
+        "playerId": { "type": "string", "description": "CHUKA Player ID e.g. CHUKA-000001", "pattern": "^CHUKA-[0-9]{6}$" },
+        "displayName": { "type": "string", "maxLength": 80 },
+        "email": { "type": "string", "format": "email", "maxLength": 120 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "registeredAt": { "type": "string" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "championships": { "type": "number" },
+        "isAdmin": { "type": "boolean" },
+        "isSuspended": { "type": "boolean" }
+      },
+      "required": ["id", "playerId", "displayName", "email", "registeredAt"]
+    },
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Weekly eFootball Mobile Tournament",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "weekNumber": { "type": "number" },
+        "name": { "type": "string", "maxLength": 100 },
+        "registrationOpenDate": { "type": "string" },
+        "registrationCloseDate": { "type": "string" },
+        "verificationDate": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "entryFee": { "type": "number" },
+        "maxPlayers": { "type": "number" },
+        "registeredCount": { "type": "number" },
+        "verifiedCount": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["UPCOMING", "REGISTRATION_OPEN", "VERIFICATION", "BRACKET_READY", "LIVE", "COMPLETED", "CANCELLED"]
+        },
+        "currentRound": { "type": "string" },
+        "totalRounds": { "type": "number" },
+        "championPlayerId": { "type": "string" },
+        "championName": { "type": "string" },
+        "championPhoto": { "type": "string" },
+        "championScore": { "type": "string" },
+        "completedDate": { "type": "string" },
+        "lockedAt": { "type": "string" },
+        "lockedBy": { "type": "string" },
+        "bracketVersion": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "weekNumber", "name", "entryFee", "status"]
+    },
+    "TournamentRound": {
+      "title": "TournamentRound",
+      "description": "Round schedule and time window configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "roundNumber": { "type": "number" },
+        "roundName": { "type": "string" },
+        "startDate": { "type": "string" },
+        "deadline": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "ACTIVE", "COMPLETED"] }
+      },
+      "required": ["id", "tournamentId", "roundNumber", "roundName", "startDate", "deadline", "status"]
+    },
+    "TournamentEntry": {
+      "title": "TournamentEntry",
+      "description": "Player registration entry for a specific tournament",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "registrationId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "userId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "registeredAt": { "type": "string" },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["PENDING", "PAYMENT_PENDING", "VERIFIED", "PAYMENT_REJECTED", "REJECTED"]
+        },
+        "registrationStatus": {
+          "type": "string",
+          "enum": ["PENDING", "PAYMENT_PENDING", "VERIFIED", "PAYMENT_REJECTED", "REJECTED", "CANCELLED"]
+        },
+        "mpesaTransactionCode": { "type": "string" },
+        "mpesaPhone": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "verifiedBy": { "type": "string" },
+        "rejectedAt": { "type": "string" },
+        "rejectedBy": { "type": "string" },
+        "rejectionReason": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PAYMENT_REQUIRED", "PENDING", "PAYMENT_PENDING", "VERIFIED", "PAYMENT_REJECTED", "REJECTED", "CANCELLED", "DISQUALIFIED", "SUSPENDED", "ELIMINATED", "CHAMPION"]
+        },
+        "paymentId": { "type": "string" }
+      },
+      "required": ["id", "tournamentId", "userId", "playerId", "displayName", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "M-Pesa entry fee payment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "paymentId": { "type": "string" },
+        "registrationId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "userId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerDisplayName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "mpesaTransactionCode": { "type": "string", "maxLength": 25 },
+        "mpesaPhone": { "type": "string", "maxLength": 25 },
+        "mpesaCode": { "type": "string", "maxLength": 25 },
+        "timestamp": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "PAYMENT_PENDING", "VERIFIED", "REJECTED"]
+        },
+        "duplicateFlag": { "type": "boolean" },
+        "isSuspectedDuplicate": { "type": "boolean" },
+        "duplicateOfPaymentId": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "verifiedBy": { "type": "string" },
+        "rejectedAt": { "type": "string" },
+        "rejectedBy": { "type": "string" },
+        "rejectionReason": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "reviewedBy": { "type": "string" },
+        "reviewedAt": { "type": "string" }
+      },
+      "required": ["id", "tournamentId", "userId", "playerId", "amount", "status"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Knockout tournament fixture",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matchId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "roundNumber": { "type": "number" },
+        "roundName": { "type": "string" },
+        "homePlayerId": { "type": "string" },
+        "homePlayerUid": { "type": "string" },
+        "homePlayerName": { "type": "string" },
+        "awayPlayerId": { "type": "string" },
+        "awayPlayerUid": { "type": "string" },
+        "awayPlayerName": { "type": "string" },
+        "roomNumber": { "type": "string", "maxLength": 20 },
+        "status": {
+          "type": "string",
+          "enum": ["SCHEDULED", "IN_PROGRESS", "SUBMITTED", "AWAITING_CONFIRMATION", "CONFIRMED", "DISPUTED", "OVERDUE", "CANCELLED"]
+        },
+        "homeScore": { "type": "number" },
+        "awayScore": { "type": "number" },
+        "submittedBy": { "type": "string" },
+        "winnerId": { "type": "string" },
+        "winnerUid": { "type": "string" },
+        "loserId": { "type": "string" },
+        "deadline": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "matchId", "tournamentId", "roundNumber", "status"]
+    },
+    "MatchEvidence": {
+      "title": "MatchEvidence",
+      "description": "Temporary screenshot evidence for match verification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matchId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "screenshotUrl": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "APPROVED", "REJECTED", "PURGED"]
+        },
+        "uploadedAt": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "deletedAt": { "type": "string" }
+      },
+      "required": ["id", "matchId", "uploadedBy", "status"]
+    },
+    "Dispute": {
+      "title": "Dispute",
+      "description": "Match result dispute report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matchId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "reportedByName": { "type": "string" },
+        "reason": { "type": "string" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["OPEN", "RESOLVED", "DISMISSED"] },
+        "createdAt": { "type": "string" },
+        "resolvedAt": { "type": "string" },
+        "resolution": { "type": "string" }
+      },
+      "required": ["id", "matchId", "reportedBy", "reason", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable ledger of all critical tournament events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "actor": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["id", "action", "actor", "timestamp"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "whatsappUrl": { "type": "string" },
+        "defaultEntryFee": { "type": "number" },
+        "announcement": { "type": "string" },
+        "rulesMarkdown": { "type": "string" }
+      }
+    },
+    "MatchRoom": {
+      "title": "MatchRoom",
+      "description": "Private eFootball Mobile match room handoff record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matchId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "homePlayerUid": { "type": "string" },
+        "homePlayerId": { "type": "string" },
+        "awayPlayerUid": { "type": "string" },
+        "awayPlayerId": { "type": "string" },
+        "roomNumber": { "type": "string", "pattern": "^[0-9]{6}$" },
+        "roomCreatedAt": { "type": "string" },
+        "roomJoinWindowMinutes": { "type": "number" },
+        "awayReady": { "type": "boolean" },
+        "awayReadyAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "matchId", "homePlayerUid", "awayPlayerUid", "roomNumber", "roomCreatedAt"]
+    },
+    "LeagueSeason": {
+      "title": "LeagueSeason",
+      "description": "Permanent CHUKA eFOOTBALL League season configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "seasonNumber": { "type": "number" },
+        "entryFee": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "PAUSED", "COMPLETED"] },
+        "pointsForWin": { "type": "number" },
+        "pointsForDraw": { "type": "number" },
+        "pointsForLoss": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "entryFee", "status"]
+    },
+    "LeagueMember": {
+      "title": "LeagueMember",
+      "description": "Registered and verified CHUKA eFOOTBALL League member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "userId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "efootballUsername": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "squadImageUrl": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING_PAYMENT_VERIFICATION", "VERIFIED", "REJECTED", "SUSPENDED"]
+        },
+        "matchesPlayed": { "type": "number" },
+        "wins": { "type": "number" },
+        "draws": { "type": "number" },
+        "losses": { "type": "number" },
+        "goalsFor": { "type": "number" },
+        "goalsAgainst": { "type": "number" },
+        "goalDifference": { "type": "number" },
+        "points": { "type": "number" },
+        "currentPosition": { "type": "number" },
+        "winRate": { "type": "number" },
+        "joinedAt": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "verifiedBy": { "type": "string" }
+      },
+      "required": ["id", "leagueId", "userId", "playerId", "displayName", "status"]
+    },
+    "LeaguePayment": {
+      "title": "LeaguePayment",
+      "description": "KSh50 League Card manual verification payment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "userId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "accountName": { "type": "string" },
+        "displayName": { "type": "string" },
+        "amount": { "type": "number" },
+        "mpesaCode": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "VERIFIED", "REJECTED", "DUPLICATE_FLAGGED"]
+        },
+        "isSuspectedDuplicate": { "type": "boolean" },
+        "verifiedBy": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "rejectionReason": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "leagueId", "userId", "playerId", "amount", "mpesaCode", "status"]
+    },
+    "LeagueChallenge": {
+      "title": "LeagueChallenge",
+      "description": "Match request/challenge between two verified League members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "challengerUid": { "type": "string" },
+        "challengerPlayerId": { "type": "string" },
+        "challengerName": { "type": "string" },
+        "challengerEfootball": { "type": "string" },
+        "challengedUid": { "type": "string" },
+        "challengedPlayerId": { "type": "string" },
+        "challengedName": { "type": "string" },
+        "challengedEfootball": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"]
+        },
+        "message": { "type": "string" },
+        "leagueMatchId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "respondedAt": { "type": "string" }
+      },
+      "required": ["id", "leagueId", "challengerUid", "challengedUid", "status"]
+    },
+    "LeagueMatch": {
+      "title": "LeagueMatch",
+      "description": "Official League head-to-head match fixture",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "matchNumber": { "type": "number" },
+        "homePlayerUid": { "type": "string" },
+        "homePlayerId": { "type": "string" },
+        "homePlayerName": { "type": "string" },
+        "homeEfootball": { "type": "string" },
+        "awayPlayerUid": { "type": "string" },
+        "awayPlayerId": { "type": "string" },
+        "awayPlayerName": { "type": "string" },
+        "awayEfootball": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "roomHostUid": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["SCHEDULED", "ROOM_READY", "PLAYING", "AWAITING_OPPONENT_CONFIRMATION", "CONFIRMED", "DISPUTED", "VOID"]
+        },
+        "homeScore": { "type": "number" },
+        "awayScore": { "type": "number" },
+        "winnerPlayerId": { "type": "string" },
+        "winnerUid": { "type": "string" },
+        "submittedByUid": { "type": "string" },
+        "submittedByPlayerId": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "confirmedByUid": { "type": "string" },
+        "confirmedAt": { "type": "string" },
+        "isStatsApplied": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "leagueId", "homePlayerUid", "awayPlayerUid", "status"]
+    },
+    "LeagueDispute": {
+      "title": "LeagueDispute",
+      "description": "Dispute reported on a League match result",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "reportedByUid": { "type": "string" },
+        "reportedByPlayerId": { "type": "string" },
+        "reason": { "type": "string" },
+        "explanation": { "type": "string" },
+        "evidenceUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "RESOLVED"] },
+        "adminRuling": { "type": "string" },
+        "adminNotes": { "type": "string" },
+        "resolvedBy": { "type": "string" },
+        "resolvedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "leagueId", "matchId", "reportedByUid", "reason", "status"]
+    },
+    "SocialActivity": {
+      "title": "SocialActivity",
+      "description": "Factual system-generated competitive activity events",
+      "type": "object",
+      "properties": {
+        "activityId": { "type": "string" },
+        "type": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerUsername": { "type": "string" },
+        "message": { "type": "string", "maxLength": 250 },
+        "createdAt": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "MEMBERS"] }
+      },
+      "required": ["activityId", "type", "playerId", "message", "createdAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Community posts published by verified league members",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorPlayerId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "type": { "type": "string" },
+        "content": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["ACTIVE", "REPORTED", "REMOVED"] },
+        "reportCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["postId", "authorUid", "authorPlayerId", "authorUsername", "content", "status"]
+    },
+    "CommunityReport": {
+      "title": "CommunityReport",
+      "description": "Reports against community posts for moderator review",
+      "type": "object",
+      "properties": {
+        "reportId": { "type": "string" },
+        "postId": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "reason": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "RESOLVED", "DISMISSED"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["reportId", "postId", "reportedBy", "reason", "status"]
+    },
+    "UserBlock": {
+      "title": "UserBlock",
+      "description": "Player level user blocking records",
+      "type": "object",
+      "properties": {
+        "blockId": { "type": "string" },
+        "blockerUid": { "type": "string" },
+        "blockedPlayerId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["blockId", "blockerUid", "blockedPlayerId"]
+    },
+    "InAppNotification": {
+      "title": "InAppNotification",
+      "description": "Private in-app alerts for player events",
+      "type": "object",
+      "properties": {
+        "notificationId": { "type": "string" },
+        "recipientUid": { "type": "string" },
+        "recipientPlayerId": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["notificationId", "recipientUid", "recipientPlayerId", "type", "title", "message", "isRead"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Registered player profiles"
+    },
+    "/tournaments/{tournamentId}": {
+      "schema": "Tournament",
+      "description": "Weekly eFootball tournament records"
+    },
+    "/rounds/{roundId}": {
+      "schema": "TournamentRound",
+      "description": "Round schedule and time window records"
+    },
+    "/tournamentEntries/{entryId}": {
+      "schema": "TournamentEntry",
+      "description": "Player tournament registrations"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "M-Pesa payment tracking"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Knockout match fixtures"
+    },
+    "/matchRooms/{matchId}": {
+      "schema": "MatchRoom",
+      "description": "Private eFootball Mobile match rooms (Home, Away, Admin)"
+    },
+    "/matchEvidence/{evidenceId}": {
+      "schema": "MatchEvidence",
+      "description": "Temporary screenshot evidence metadata"
+    },
+    "/disputes/{disputeId}": {
+      "schema": "Dispute",
+      "description": "Match dispute reports"
+    },
+    "/adminLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit and compliance log records"
+    },
+    "/settings/{settingId}": {
+      "schema": "Setting",
+      "description": "Global tournament settings"
+    },
+    "/admins/{adminUid}": {
+      "schema": "User",
+      "description": "Admin identity records"
+    },
+    "/leagues/{leagueId}": {
+      "schema": "LeagueSeason",
+      "description": "Official League season configuration"
+    },
+    "/leagueMembers/{memberDocId}": {
+      "schema": "LeagueMember",
+      "description": "League membership cards and standings stats"
+    },
+    "/leaguePayments/{paymentId}": {
+      "schema": "LeaguePayment",
+      "description": "KSh50 League Card M-Pesa manual verification records"
+    },
+    "/leagueChallenges/{challengeId}": {
+      "schema": "LeagueChallenge",
+      "description": "Head-to-head match requests between verified League members"
+    },
+    "/leagueMatches/{matchId}": {
+      "schema": "LeagueMatch",
+      "description": "Official League head-to-head match fixtures and dual confirmation"
+    },
+    "/leagueDisputes/{disputeId}": {
+      "schema": "LeagueDispute",
+      "description": "League match disputes submitted for admin resolution"
+    },
+    "/socialActivity/{activityId}": {
+      "schema": "SocialActivity",
+      "description": "System-generated competitive activity events"
+    },
+    "/communityPosts/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Verified member community posts and opponent search"
+    },
+    "/communityReports/{reportId}": {
+      "schema": "CommunityReport",
+      "description": "Reports against community posts for moderator review"
+    },
+    "/userBlocks/{blockId}": {
+      "schema": "UserBlock",
+      "description": "Player-level user blocking records"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "InAppNotification",
+      "description": "Private in-app notification alerts"
+    }
+  }
+}

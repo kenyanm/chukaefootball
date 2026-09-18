@@ -1,0 +1,43 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email != null && request.auth.token.email == 'wayongohlaurence@gmail.com'
+      );
+    }
+    function isImageFile() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif)')
+        && request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // Player profile & eFootball account images: /profile_images/{userId}/{fileName}
+    // Only the owner can write their own image; public read for official rosters and match rooms
+    match /profile_images/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) && isImageFile();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Match Evidence: private evidence uploaded for match verification
+    // Supports path: /match_evidence/{tournamentId}/{matchId}/{fileName}
+    match /match_evidence/{tournamentId}/{matchId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isImageFile();
+      allow delete: if isSignedIn() || isAdmin();
+    }
+
+    // Match Evidence: /match_evidence/{matchId}/{fileName}
+    match /match_evidence/{matchId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isImageFile();
+      allow delete: if isSignedIn() || isAdmin();
+    }
+  }
+}
